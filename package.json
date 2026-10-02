@@ -1,5 +1,5 @@
 {
-  "name": "nacha-viewer",
+  "name": "nacha-file-viewer",
   "version": "1.0.0",
   "description": "Browser-based viewer and validator for NACHA ACH files",
   "type": "module",
