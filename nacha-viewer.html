@@ -1,0 +1,1997 @@
+<title>NACHA File Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+/>
+<style>
+  :root {
+    --bg: #edf1f0;
+    --surface: #ffffff;
+    --surface-2: #f5f8f7;
+    --ink: #16232a;
+    --muted: #56676d;
+    --line: #d2dbda;
+    --accent: #1d5d72;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcebee;
+    --ok: #21704a;
+    --ok-soft: #e0f0e6;
+    --warn: #8f5b00;
+    --warn-soft: #f7ecd5;
+    --bad: #ad271e;
+    --bad-soft: #f8e2df;
+    --debit: #9a4412;
+    --fa: #e3edee;
+    --fb: #f2ece1;
+    --sel: #fff6cc;
+    --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, Consolas, "Courier New", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1619;
+      --surface: #162024;
+      --surface-2: #1b272c;
+      --ink: #e2eaea;
+      --muted: #93a4a8;
+      --line: #2a393e;
+      --accent: #72b6c9;
+      --accent-ink: #0d1a1e;
+      --accent-soft: #1b343b;
+      --ok: #6cc391;
+      --ok-soft: #173326;
+      --warn: #e2ab43;
+      --warn-soft: #3a2d12;
+      --bad: #f07f75;
+      --bad-soft: #3d1c19;
+      --debit: #eba070;
+      --fa: #1d3036;
+      --fb: #2e2a22;
+      --sel: #3d3714;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1619;
+    --surface: #162024;
+    --surface-2: #1b272c;
+    --ink: #e2eaea;
+    --muted: #93a4a8;
+    --line: #2a393e;
+    --accent: #72b6c9;
+    --accent-ink: #0d1a1e;
+    --accent-soft: #1b343b;
+    --ok: #6cc391;
+    --ok-soft: #173326;
+    --warn: #e2ab43;
+    --warn-soft: #3a2d12;
+    --bad: #f07f75;
+    --bad-soft: #3d1c19;
+    --debit: #eba070;
+    --fa: #1d3036;
+    --fb: #2e2a22;
+    --sel: #3d3714;
+    color-scheme: dark;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--f-body);
+    padding-inline: 16px;
+    padding-block: 0 48px;
+  }
+  .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: 0.005em;
+  }
+  .mono,
+  code {
+    font-family: var(--f-mono);
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  button,
+  .btn {
+    font: 500 14px/1 var(--f-body);
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 9px 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  button:hover,
+  .btn:hover {
+    border-color: var(--accent);
+  }
+  button.primary,
+  .btn.primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .eyebrow {
+    font: 600 11.5px/1 var(--f-display);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+  }
+
+  .top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    padding-top: 24px;
+  }
+  .brand h1 {
+    font-size: 28px;
+    line-height: 1.1;
+  }
+  .brand p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #fileInput {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .pastebox {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .pastebox textarea {
+    width: 100%;
+    min-height: 160px;
+    font: 12.5px/1.45 var(--f-mono);
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px;
+    resize: vertical;
+  }
+  .pastebox .row {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .summary {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .sumhead {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sumhead .fname {
+    font: 500 15px var(--f-mono);
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .parties {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px 24px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .parties .v {
+    font-weight: 600;
+    margin-top: 5px;
+  }
+  .parties .s {
+    color: var(--muted);
+    font: 13px var(--f-mono);
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+  .stat {
+    padding: 16px 20px;
+    border-right: 1px solid var(--line);
+  }
+  .stat:last-child {
+    border-right: 0;
+  }
+  .stat .big {
+    font: 600 26px/1.15 var(--f-display);
+    margin-top: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .s {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .stat.debit .big {
+    color: var(--debit);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 600 12px/1 var(--f-body);
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .chip.ok {
+    background: var(--ok-soft);
+    color: var(--ok);
+    border-color: transparent;
+  }
+  .chip.warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+    border-color: transparent;
+  }
+  .chip.bad {
+    background: var(--bad-soft);
+    color: var(--bad);
+    border-color: transparent;
+  }
+  .chip.acc {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: transparent;
+  }
+  .chip .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .tag {
+    display: inline-block;
+    font: 600 10.5px/1 var(--f-body);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    color: var(--muted);
+    border: 1px solid var(--line);
+    margin-left: 6px;
+    vertical-align: 1px;
+  }
+  .tag.warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+    border-color: transparent;
+  }
+  .tag.bad {
+    background: var(--bad-soft);
+    color: var(--bad);
+    border-color: transparent;
+  }
+  .tag.acc {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: transparent;
+  }
+
+  .landing {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    background: var(--surface);
+    border: 2px dashed var(--line);
+    border-radius: 12px;
+    padding: 40px 32px;
+    cursor: pointer;
+  }
+  .landing:hover {
+    border-color: var(--accent);
+  }
+  .landing .lt {
+    font: 600 26px/1.15 var(--f-display);
+    text-wrap: balance;
+  }
+  .landing .ld {
+    color: var(--muted);
+    max-width: 62ch;
+  }
+  .landing .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px 28px;
+    width: 100%;
+    margin-top: 14px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .landing .steps b {
+    display: block;
+    color: var(--ink);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  @media (max-width: 620px) {
+    .landing {
+      padding: 28px 20px;
+    }
+  }
+
+  .issues {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .issues summary {
+    cursor: pointer;
+    padding: 12px 18px;
+    font-weight: 600;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .issues ul {
+    list-style: none;
+    margin: 0;
+    padding: 0 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .issues li {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 14px;
+  }
+  .issues li .ln {
+    font: 12px var(--f-mono);
+    color: var(--muted);
+    min-width: 64px;
+  }
+  .issues li .lvl {
+    font: 600 11px var(--f-body);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    min-width: 58px;
+  }
+  .issues li .lvl.error {
+    color: var(--bad);
+  }
+  .issues li .lvl.warning {
+    color: var(--warn);
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tabs {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .tabs button {
+    border: 0;
+    background: transparent;
+    padding: 8px 14px;
+    border-radius: 6px;
+    color: var(--muted);
+  }
+  .tabs button[aria-selected="true"] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .search {
+    font: 14px var(--f-body);
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+    width: 260px;
+    max-width: 100%;
+  }
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle input {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+  }
+  #copyMsg {
+    font-size: 13px;
+    color: var(--ok);
+  }
+
+  .batch {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .bhead {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 28px;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .bhead .left {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bhead h3 {
+    font-size: 20px;
+  }
+  .bmeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    color: var(--muted);
+    font-size: 13.5px;
+    align-items: center;
+  }
+  .bmeta b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .btot {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .btot div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+  }
+  .btot .amt {
+    font: 600 17px var(--f-display);
+    font-variant-numeric: tabular-nums;
+  }
+  .btot .amt.debit {
+    color: var(--debit);
+  }
+  .tablewrap {
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+  }
+  th {
+    font: 600 11.5px/1.2 var(--f-display);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  tbody tr.e {
+    cursor: pointer;
+  }
+  tbody tr.e:hover td {
+    background: var(--surface-2);
+  }
+  tbody tr.e.open td {
+    background: var(--accent-soft);
+  }
+  td.r,
+  th.r {
+    text-align: right;
+  }
+  td.amt {
+    font: 500 14px var(--f-mono);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  td.amt.debit {
+    color: var(--debit);
+  }
+  td .sub {
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  td.mono {
+    font: 13px var(--f-mono);
+    white-space: nowrap;
+  }
+  tr.detail td {
+    background: var(--surface-2);
+    padding: 14px 16px 16px;
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px 22px;
+  }
+  .kv .k {
+    font: 600 11px var(--f-display);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+  }
+  .kv .v {
+    font: 13.5px var(--f-mono);
+    overflow-wrap: anywhere;
+  }
+  .addenda {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .addenda .a {
+    border-left: 3px solid var(--accent);
+    padding: 6px 10px;
+    background: var(--surface);
+    border-radius: 0 6px 6px 0;
+  }
+  .addenda .a .t {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .addenda .a .x {
+    font: 13px var(--f-mono);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .eiss {
+    margin-top: 10px;
+    color: var(--bad);
+    font-size: 13.5px;
+  }
+  .empty {
+    padding: 28px 20px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .rawgrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  @media (min-width: 1080px) {
+    .rawgrid {
+      grid-template-columns: minmax(0, 1fr) 360px;
+    }
+  }
+  .rawlist {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow-x: auto;
+    padding: 8px 0;
+  }
+  .rl {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    font: 12.5px/1.9 var(--f-mono);
+    white-space: pre;
+    cursor: pointer;
+    padding-inline: 10px;
+    min-width: max-content;
+  }
+  .rl:hover {
+    background: var(--surface-2);
+  }
+  .rl.sel {
+    background: var(--sel);
+  }
+  .rl .ln {
+    color: var(--muted);
+    width: 44px;
+    text-align: right;
+    padding-right: 10px;
+    flex: none;
+  }
+  .rl .ty {
+    width: 34px;
+    flex: none;
+    font: 600 10.5px var(--f-body);
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  .rl .ty.e6 {
+    color: var(--ink);
+  }
+  .rl .ty.e7 {
+    color: var(--muted);
+  }
+  .rl .ty.pad {
+    color: var(--muted);
+    opacity: 0.6;
+  }
+  .rl .fd:nth-child(odd) {
+    background: var(--fa);
+  }
+  .rl .fd:nth-child(even) {
+    background: var(--fb);
+  }
+  .rl.pad .fd {
+    background: transparent !important;
+    color: var(--muted);
+  }
+  .rl.bad .ln {
+    color: var(--bad);
+    font-weight: 600;
+  }
+  .inspector {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+  }
+  .inspector h3 {
+    font-size: 17px;
+    margin-bottom: 10px;
+  }
+  .inspector table {
+    font-size: 13px;
+  }
+  .inspector td {
+    padding: 6px 6px;
+    vertical-align: top;
+  }
+  .inspector td.pos {
+    font: 12px var(--f-mono);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .inspector td.val {
+    font: 12.5px var(--f-mono);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .inspector .mean {
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+    padding: 2px 2px 0;
+  }
+
+  #drop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border: 3px dashed var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 600 22px var(--f-display);
+    color: var(--accent);
+    z-index: 50;
+    pointer-events: none;
+  }
+  footer {
+    color: var(--muted);
+    font-size: 12.5px;
+    max-width: 70ch;
+  }
+  @media (max-width: 620px) {
+    .stat {
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .search {
+      width: 100%;
+    }
+    .tools {
+      width: 100%;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow">ACH · 94-character records</div>
+      <h1>NACHA File Viewer</h1>
+      <p>Files are read inside this browser tab. Nothing is uploaded or saved.</p>
+    </div>
+    <div class="actions">
+      <label class="btn primary" for="fileInput">Open ACH file…</label>
+      <input type="file" id="fileInput" accept=".ach,.000,.00,.txt,.dat,.nacha,text/plain" />
+      <button id="pasteBtn" type="button">Paste text</button>
+    </div>
+  </header>
+
+  <div class="pastebox" id="pasteBox" hidden>
+    <label class="eyebrow" for="pasteArea">Paste the contents of an ACH file</label>
+    <textarea
+      id="pasteArea"
+      spellcheck="false"
+      placeholder="101 0910000191234567890261002…"
+    ></textarea>
+    <div class="row">
+      <button type="button" id="pasteCancel">Cancel</button>
+      <button type="button" class="primary" id="pasteLoad">Read file</button>
+    </div>
+  </div>
+
+  <label class="landing" id="landing" for="fileInput">
+    <span class="eyebrow">Start here</span>
+    <span class="lt">Open a NACHA file to review it</span>
+    <span class="ld">
+      Drag the file onto this page, click here to choose it, or paste its text. ACH files from
+      payroll or accounts payable usually end in .ach, .txt, .000 or .00.
+    </span>
+    <span class="steps">
+      <span>
+        <b>Totals</b>
+        Credits, debits and entry counts for the whole file and each batch
+      </span>
+      <span>
+        <b>Checks</b>
+        Control totals, entry hash, block count and routing check digits recomputed
+      </span>
+      <span>
+        <b>Details</b>
+        Every payee, account, amount and trace number, plus return and change codes
+      </span>
+    </span>
+  </label>
+
+  <section class="summary" id="summary" hidden></section>
+  <div id="issues"></div>
+
+  <div class="bar" id="bar" hidden>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabEntries" aria-selected="true">
+        Batches &amp; entries
+      </button>
+      <button type="button" role="tab" id="tabRaw" aria-selected="false">Raw records</button>
+    </div>
+    <div class="tools">
+      <input
+        class="search"
+        id="search"
+        type="search"
+        placeholder="Search name, amount, account, trace…"
+        aria-label="Search entries"
+      />
+      <button
+        type="button"
+        id="copyBtn"
+        title="Copies the visible entries as tab-separated rows you can paste into Excel"
+      >
+        Copy for Excel
+      </button>
+      <span id="copyMsg" role="status"></span>
+    </div>
+  </div>
+
+  <main id="view"></main>
+
+  <footer>
+    Reads standard NACHA files (PPD, CCD, CTX, WEB, TEL and other SEC codes), including return (R)
+    and notification of change (C) addenda. Checks every batch and file control total, entry hash,
+    block count and routing check digit. IAT entries are shown with the domestic field layout.
+  </footer>
+</div>
+<div id="drop" hidden>Drop the ACH file to read it</div>
+
+<script id="core">
+  const SEC = {
+    PPD: "Prearranged payment & deposit (consumer)",
+    CCD: "Corporate credit or debit",
+    CTX: "Corporate trade exchange",
+    WEB: "Internet-initiated entry",
+    TEL: "Telephone-initiated entry",
+    IAT: "International ACH transaction",
+    POP: "Point-of-purchase check conversion",
+    ARC: "Accounts receivable check conversion",
+    BOC: "Back-office check conversion",
+    RCK: "Re-presented check",
+    CIE: "Customer-initiated entry",
+    COR: "Notification of change / refused NOC",
+    ACK: "Acknowledgment (CCD)",
+    ATX: "Acknowledgment (CTX)",
+    DNE: "Death notification",
+    ENR: "Automated enrollment",
+    MTE: "Machine transfer entry",
+    POS: "Point-of-sale entry",
+    SHR: "Shared network transaction",
+    TRC: "Truncated check entry",
+    TRX: "Truncated entries exchange",
+    XCK: "Destroyed check entry",
+  };
+  const SVC = {
+    200: "Mixed debits and credits",
+    220: "Credits only",
+    225: "Debits only",
+    280: "Automated accounting advices",
+  };
+  const RCODES = {
+    R01: "Insufficient funds",
+    R02: "Account closed",
+    R03: "No account / unable to locate",
+    R04: "Invalid account number",
+    R05: "Unauthorized debit to consumer account using corporate SEC code",
+    R06: "Returned per ODFI request",
+    R07: "Authorization revoked by customer",
+    R08: "Payment stopped",
+    R09: "Uncollected funds",
+    R10: "Customer advises not authorized",
+    R11: "Customer advises entry not in accordance with authorization",
+    R12: "Account sold to another DFI",
+    R13: "Invalid ACH routing number",
+    R14: "Representative payee deceased",
+    R15: "Beneficiary or account holder deceased",
+    R16: "Account frozen / returned per OFAC",
+    R17: "File record edit criteria / questionable entry",
+    R18: "Improper effective entry date",
+    R19: "Amount field error",
+    R20: "Non-transaction account",
+    R21: "Invalid company identification",
+    R22: "Invalid individual ID number",
+    R23: "Credit entry refused by receiver",
+    R24: "Duplicate entry",
+    R25: "Addenda error",
+    R26: "Mandatory field error",
+    R27: "Trace number error",
+    R28: "Routing number check digit error",
+    R29: "Corporate customer advises not authorized",
+    R30: "RDFI not participant in check truncation",
+    R31: "Permissible return entry (CCD/CTX)",
+    R32: "RDFI non-settlement",
+    R33: "Return of XCK entry",
+    R34: "Limited participation DFI",
+    R35: "Return of improper debit entry",
+    R36: "Return of improper credit entry",
+    R37: "Source document presented for payment",
+    R38: "Stop payment on source document",
+    R39: "Improper source document",
+    R50: "State law affecting RCK acceptance",
+    R51: "Item related to RCK entry is ineligible",
+    R52: "Stop payment on item related to RCK",
+    R53: "Item and RCK entry presented for payment",
+    R61: "Misrouted return",
+    R62: "Return of erroneous or reversing debit",
+    R67: "Duplicate return",
+    R68: "Untimely return",
+    R69: "Field error(s)",
+    R70: "Permissible return entry not accepted",
+    R71: "Misrouted dishonored return",
+    R72: "Untimely dishonored return",
+    R73: "Timely original return",
+    R74: "Corrected return",
+    R75: "Return not a duplicate",
+    R76: "No errors found",
+    R77: "Non-acceptance of R62 dishonored return",
+    R80: "IAT entry coding error",
+    R81: "Non-participant in IAT program",
+    R82: "Invalid foreign receiving DFI identification",
+    R83: "Foreign receiving DFI unable to settle",
+    R84: "Entry not processed by gateway",
+    R85: "Incorrectly coded outbound international payment",
+  };
+  const CCODES = {
+    C01: "Incorrect account number",
+    C02: "Incorrect routing number",
+    C03: "Incorrect routing number and account number",
+    C04: "Incorrect individual name / receiving company name",
+    C05: "Incorrect transaction code",
+    C06: "Incorrect account number and transaction code",
+    C07: "Incorrect routing, account and transaction code",
+    C08: "Incorrect receiving DFI identification (IAT)",
+    C09: "Incorrect individual identification number",
+    C10: "Incorrect company name",
+    C11: "Incorrect company identification",
+    C12: "Incorrect company name and identification",
+    C13: "Addenda format error",
+    C14: "Incorrect SEC code for outbound international payment",
+    C61: "Misrouted NOC",
+    C62: "Incorrect trace number",
+    C63: "Incorrect company ID number",
+    C64: "Incorrect individual ID number",
+    C65: "Incorrectly formatted corrected data",
+    C66: "Incorrect discretionary data",
+    C67: "Routing number not from original entry",
+    C68: "Account number not from original entry",
+    C69: "Incorrect transaction code",
+  };
+  const VALID_TC = new Set([
+    21, 22, 23, 24, 26, 27, 28, 29, 31, 32, 33, 34, 36, 37, 38, 39, 41, 42, 43, 44, 46, 47, 48, 49,
+    51, 52, 53, 54, 55, 56,
+  ]);
+  const ADDTYPE = {
+    "02": "Point-of-sale / terminal information",
+    "05": "Payment related information",
+    98: "Notification of change",
+    99: "Return",
+    10: "IAT addenda 1",
+    11: "IAT addenda 2",
+    12: "IAT addenda 3",
+    13: "IAT addenda 4",
+    14: "IAT addenda 5",
+    15: "IAT addenda 6",
+    16: "IAT addenda 7",
+    17: "IAT remittance",
+    18: "IAT foreign correspondent bank",
+  };
+
+  function tcInfo(code) {
+    const n = parseInt(code, 10),
+      c = String(code);
+    const acct = { 2: "Checking", 3: "Savings", 4: "General ledger", 5: "Loan" }[c[0]];
+    const d = +c[1];
+    if (!VALID_TC.has(n) || !acct)
+      return {
+        label: "Unknown code " + c,
+        short: "?",
+        debit: false,
+        kind: "unknown",
+        valid: false,
+      };
+    const debit = d >= 5;
+    const kind =
+      { 1: "return", 6: "return", 3: "prenote", 8: "prenote", 4: "zero", 9: "zero" }[d] || "live";
+    const k = { return: "return/NOC ", prenote: "prenote ", zero: "zero-dollar ", live: "" }[kind];
+    return { label: acct + " " + k + (debit ? "debit" : "credit"), acct, debit, kind, valid: true };
+  }
+
+  const L = {
+    1: [
+      ["type", 1, 1, "Record type"],
+      ["priority", 2, 2, "Priority code"],
+      ["dest", 4, 10, "Immediate destination", "rt"],
+      ["origin", 14, 10, "Immediate origin"],
+      ["date", 24, 6, "File creation date", "date"],
+      ["time", 30, 4, "File creation time", "time"],
+      ["mod", 34, 1, "File ID modifier"],
+      ["size", 35, 3, "Record size"],
+      ["block", 38, 2, "Blocking factor"],
+      ["format", 40, 1, "Format code"],
+      ["destName", 41, 23, "Immediate destination name"],
+      ["originName", 64, 23, "Immediate origin name"],
+      ["ref", 87, 8, "Reference code"],
+    ],
+    5: [
+      ["type", 1, 1, "Record type"],
+      ["svc", 2, 3, "Service class code", "svc"],
+      ["company", 5, 16, "Company name"],
+      ["disc", 21, 20, "Company discretionary data"],
+      ["companyId", 41, 10, "Company identification"],
+      ["sec", 51, 3, "Standard entry class", "sec"],
+      ["desc", 54, 10, "Company entry description"],
+      ["descDate", 64, 6, "Company descriptive date"],
+      ["eff", 70, 6, "Effective entry date", "date"],
+      ["settle", 76, 3, "Settlement date (Julian, bank-filled)"],
+      ["status", 79, 1, "Originator status code"],
+      ["odfi", 80, 8, "Originating DFI"],
+      ["batchNo", 88, 7, "Batch number"],
+    ],
+    6: [
+      ["type", 1, 1, "Record type"],
+      ["tc", 2, 2, "Transaction code", "tc"],
+      ["rdfi", 4, 8, "Receiving DFI"],
+      ["cd", 12, 1, "Check digit"],
+      ["acct", 13, 17, "DFI account number", "acct"],
+      ["amount", 30, 10, "Amount", "money"],
+      ["id", 40, 15, "Identification number"],
+      ["name", 55, 22, "Receiver name"],
+      ["disc", 77, 2, "Discretionary data"],
+      ["addInd", 79, 1, "Addenda record indicator"],
+      ["trace", 80, 15, "Trace number"],
+    ],
+    "6CTX": [
+      ["type", 1, 1, "Record type"],
+      ["tc", 2, 2, "Transaction code", "tc"],
+      ["rdfi", 4, 8, "Receiving DFI"],
+      ["cd", 12, 1, "Check digit"],
+      ["acct", 13, 17, "DFI account number", "acct"],
+      ["amount", 30, 10, "Amount", "money"],
+      ["id", 40, 15, "Identification number"],
+      ["numAdd", 55, 4, "Number of addenda records"],
+      ["name", 59, 16, "Receiving company name"],
+      ["reserved", 75, 2, "Reserved"],
+      ["disc", 77, 2, "Discretionary data"],
+      ["addInd", 79, 1, "Addenda record indicator"],
+      ["trace", 80, 15, "Trace number"],
+    ],
+    705: [
+      ["type", 1, 1, "Record type"],
+      ["addType", 2, 2, "Addenda type code", "addtype"],
+      ["info", 4, 80, "Payment related information"],
+      ["seq", 84, 4, "Addenda sequence number"],
+      ["entrySeq", 88, 7, "Entry detail sequence number"],
+    ],
+    799: [
+      ["type", 1, 1, "Record type"],
+      ["addType", 2, 2, "Addenda type code", "addtype"],
+      ["code", 4, 3, "Return reason code", "rcode"],
+      ["origTrace", 7, 15, "Original entry trace number"],
+      ["dod", 22, 6, "Date of death", "date"],
+      ["origRdfi", 28, 8, "Original receiving DFI"],
+      ["info", 36, 44, "Addenda information"],
+      ["trace", 80, 15, "Trace number"],
+    ],
+    798: [
+      ["type", 1, 1, "Record type"],
+      ["addType", 2, 2, "Addenda type code", "addtype"],
+      ["code", 4, 3, "Change code", "ccode"],
+      ["origTrace", 7, 15, "Original entry trace number"],
+      ["reserved", 22, 6, "Reserved"],
+      ["origRdfi", 28, 8, "Original receiving DFI"],
+      ["info", 36, 29, "Corrected data"],
+      ["reserved2", 65, 15, "Reserved"],
+      ["trace", 80, 15, "Trace number"],
+    ],
+    7: [
+      ["type", 1, 1, "Record type"],
+      ["addType", 2, 2, "Addenda type code", "addtype"],
+      ["info", 4, 91, "Addenda data"],
+    ],
+    8: [
+      ["type", 1, 1, "Record type"],
+      ["svc", 2, 3, "Service class code", "svc"],
+      ["count", 5, 6, "Entry/addenda count"],
+      ["hash", 11, 10, "Entry hash"],
+      ["debits", 21, 12, "Total debit amount", "money"],
+      ["credits", 33, 12, "Total credit amount", "money"],
+      ["companyId", 45, 10, "Company identification"],
+      ["mac", 55, 19, "Message authentication code"],
+      ["reserved", 74, 6, "Reserved"],
+      ["odfi", 80, 8, "Originating DFI"],
+      ["batchNo", 88, 7, "Batch number"],
+    ],
+    9: [
+      ["type", 1, 1, "Record type"],
+      ["batches", 2, 6, "Batch count"],
+      ["blocks", 8, 6, "Block count"],
+      ["count", 14, 8, "Entry/addenda count"],
+      ["hash", 22, 10, "Entry hash"],
+      ["debits", 32, 12, "Total debit amount", "money"],
+      ["credits", 44, 12, "Total credit amount", "money"],
+      ["reserved", 56, 39, "Reserved"],
+    ],
+    pad: [["pad", 1, 94, "Block filler (all 9s)"]],
+  };
+  function layoutFor(rec) {
+    if (rec.kind === "pad") return L.pad;
+    if (rec.type === "6" && rec.sec === "CTX") return L["6CTX"];
+    if (rec.type === "7") {
+      const t = rec.raw.substr(1, 2);
+      return L["7" + t] || L["7"];
+    }
+    return L[rec.type] || [["raw", 1, 94, "Unrecognized record"]];
+  }
+  function fields(raw, layout) {
+    const o = {};
+    for (const [k, s, n] of layout) o[k] = raw.substr(s - 1, n);
+    return o;
+  }
+
+  function routingOk(nine) {
+    if (!/^\d{9}$/.test(nine)) return false;
+    const d = [...nine].map(Number);
+    return (3 * (d[0] + d[3] + d[6]) + 7 * (d[1] + d[4] + d[7]) + (d[2] + d[5] + d[8])) % 10 === 0;
+  }
+  function checkDigit(eight) {
+    const d = [...eight].map(Number);
+    return (10 - ((3 * (d[0] + d[3] + d[6]) + 7 * (d[1] + d[4] + d[7]) + (d[2] + d[5])) % 10)) % 10;
+  }
+  function toInt(s) {
+    s = String(s).trim();
+    return /^\d+$/.test(s) ? parseInt(s, 10) : NaN;
+  }
+  function money(c) {
+    if (!isFinite(c)) return "—";
+    return (
+      "$" +
+      (c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    );
+  }
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function fmtDate(s) {
+    if (!/^\d{6}$/.test(s)) return s.trim() || "—";
+    const y = +s.slice(0, 2),
+      m = +s.slice(2, 4),
+      d = +s.slice(4, 6);
+    if (m < 1 || m > 12 || d < 1 || d > 31) return s;
+    return MON[m - 1] + " " + d + ", " + (2000 + y);
+  }
+  function fmtTime(s) {
+    if (!/^\d{4}$/.test(s)) return s.trim() || "—";
+    let h = +s.slice(0, 2);
+    const m = s.slice(2);
+    const ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + m + " " + ap;
+  }
+
+  function parseNacha(text) {
+    const issues = [];
+    const add = (level, msg, line) => issues.push({ level, msg, line });
+    let t = String(text).replace(/^\uFEFF/, "");
+    let lines = t.split(/\r\n|\n|\r/);
+    while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+    if (lines.length === 1 && lines[0].length > 94 && lines[0].length % 94 === 0) {
+      const one = lines[0];
+      lines = [];
+      for (let i = 0; i < one.length; i += 94) lines.push(one.slice(i, i + 94));
+      add("warning", "File has no line breaks; split into 94-character records.");
+    }
+    const records = [];
+    let shortN = 0,
+      longN = 0;
+    lines.forEach((l, i) => {
+      if (l.trim() === "") {
+        add("warning", "Blank line", i + 1);
+        return;
+      }
+      let raw = l;
+      let bad = false;
+      if (raw.length < 94) {
+        shortN++;
+        raw = raw.padEnd(94);
+        bad = true;
+      } else if (raw.length > 94) {
+        if (raw.slice(94).trim() !== "") {
+          longN++;
+          bad = true;
+        }
+        raw = raw.slice(0, 94);
+      }
+      records.push({
+        n: i + 1,
+        raw,
+        type: raw[0],
+        kind: /^9{94}$/.test(raw) ? "pad" : "rec",
+        lenBad: bad,
+      });
+    });
+    if (shortN)
+      add(
+        "warning",
+        shortN +
+          " record" +
+          (shortN > 1 ? "s are" : " is") +
+          " shorter than 94 characters (padded with spaces to read).",
+      );
+    if (longN)
+      add(
+        "warning",
+        longN +
+          " record" +
+          (longN > 1 ? "s are" : " is") +
+          " longer than 94 characters (extra text ignored).",
+      );
+
+    let fh = null,
+      fc = null,
+      cur = null,
+      last = null;
+    const batches = [];
+    let padding = 0,
+      afterFC = false;
+    for (const r of records) {
+      if (r.kind === "pad") {
+        padding++;
+        continue;
+      }
+      if (afterFC) {
+        add("error", "Record found after the file control record", r.n);
+      }
+      r.sec = cur ? cur.h.sec : null;
+      const f = fields(r.raw, layoutFor(r));
+      r.f = f;
+      switch (r.type) {
+        case "1":
+          if (fh) add("error", "Second file header record", r.n);
+          else {
+            fh = { ...f, n: r.n };
+            if (r.n !== records[0].n) add("error", "File header is not the first record", r.n);
+          }
+          if (f.size !== "094")
+            add("warning", 'Record size field is "' + f.size + '", expected 094', r.n);
+          if (f.block !== "10")
+            add("warning", 'Blocking factor is "' + f.block + '", expected 10', r.n);
+          if (!routingOk(f.dest.trim()))
+            add(
+              "warning",
+              "Immediate destination " + f.dest.trim() + " fails the routing check digit",
+              r.n,
+            );
+          break;
+        case "5":
+          if (cur)
+            add(
+              "error",
+              "Batch " + cur.h.batchNo + " has no batch control record before the next batch",
+              r.n,
+            );
+          cur = { h: f, n: r.n, entries: [], c: null, issues: [] };
+          r.sec = f.sec;
+          batches.push(cur);
+          last = null;
+          if (!SVC[f.svc]) cur.issues.push(["error", "Unknown service class code " + f.svc, r.n]);
+          break;
+        case "6": {
+          if (!cur) {
+            add("error", "Entry outside of a batch", r.n);
+            break;
+          }
+          const tc = tcInfo(f.tc),
+            amt = toInt(f.amount);
+          const e = {
+            ...f,
+            n: r.n,
+            tcInfo: tc,
+            amt,
+            addenda: [],
+            issues: [],
+            batch: cur,
+            rt: f.rdfi + f.cd,
+          };
+          if (!tc.valid) e.issues.push(["error", "Unknown transaction code " + f.tc]);
+          if (isNaN(amt)) e.issues.push(["error", 'Amount is not numeric: "' + f.amount + '"']);
+          if (!/^\d{8}$/.test(f.rdfi)) e.issues.push(["error", "Receiving DFI is not 8 digits"]);
+          else if (String(checkDigit(f.rdfi)) !== f.cd)
+            e.issues.push([
+              "warning",
+              "Routing check digit should be " + checkDigit(f.rdfi) + ", file has " + f.cd,
+            ]);
+          if (tc.kind === "prenote" && amt > 0)
+            e.issues.push(["warning", "Prenote has a non-zero amount"]);
+          if (!/^\d{15}$/.test(f.trace))
+            e.issues.push(["warning", "Trace number is not 15 digits"]);
+          cur.entries.push(e);
+          last = e;
+          r.entry = e;
+          break;
+        }
+        case "7":
+          if (!last) {
+            add("error", "Addenda record without a preceding entry", r.n);
+            break;
+          }
+          last.addenda.push({ ...f, n: r.n });
+          break;
+        case "8":
+          if (!cur) {
+            add("error", "Batch control record without a batch header", r.n);
+            break;
+          }
+          cur.c = { ...f, n: r.n };
+          cur = null;
+          last = null;
+          break;
+        case "9":
+          if (cur) {
+            add(
+              "error",
+              "Batch " + cur.h.batchNo + " was not closed before the file control record",
+              r.n,
+            );
+            cur = null;
+          }
+          if (fc) add("error", "Second file control record", r.n);
+          fc = { ...f, n: r.n };
+          afterFC = true;
+          break;
+        default:
+          add("error", 'Unknown record type "' + r.type + '"', r.n);
+      }
+    }
+    if (cur) add("error", "Batch " + cur.h.batchNo + " has no batch control record");
+    if (!fh) add("error", "No file header record (type 1)");
+    if (!fc) add("error", "No file control record (type 9)");
+
+    let fCount = 0,
+      fHash = 0,
+      fDr = 0,
+      fCr = 0,
+      prevBatch = -1;
+    const tot = { cr: 0, dr: 0, crN: 0, drN: 0, pre: 0, ret: 0, noc: 0, entries: 0 };
+    for (const b of batches) {
+      let cnt = 0,
+        hash = 0,
+        dr = 0,
+        cr = 0,
+        hasDr = false,
+        hasCr = false;
+      for (const e of b.entries) {
+        cnt += 1 + e.addenda.length;
+        hash += toInt(e.rdfi) || 0;
+        const a = isNaN(e.amt) ? 0 : e.amt;
+        if (e.tcInfo.debit) {
+          dr += a;
+          if (a > 0 || e.tcInfo.kind === "live") hasDr = true;
+        } else {
+          cr += a;
+          if (a > 0 || e.tcInfo.kind === "live") hasCr = true;
+        }
+        if (e.addInd === "1" && !e.addenda.length)
+          e.issues.push(["warning", "Addenda indicator is 1 but no addenda record follows"]);
+        if (e.addInd === "0" && e.addenda.length)
+          e.issues.push(["warning", "Addenda indicator is 0 but addenda records follow"]);
+        tot.entries++;
+        if (e.tcInfo.kind === "prenote") tot.pre++;
+        if (e.addenda.some((a) => a.addType === "99")) tot.ret++;
+        if (e.addenda.some((a) => a.addType === "98")) tot.noc++;
+        if (e.tcInfo.debit) {
+          tot.dr += a;
+          if (a > 0) tot.drN++;
+        } else {
+          tot.cr += a;
+          if (a > 0) tot.crN++;
+        }
+        for (const [lv, m] of e.issues) add(lv, m + " (entry: " + e.name.trim() + ")", e.n);
+      }
+      b.calc = { cnt, hash: hash % 1e10, dr, cr };
+      fCount += cnt;
+      fHash += hash;
+      fDr += dr;
+      fCr += cr;
+      const bn = toInt(b.h.batchNo);
+      if (!isNaN(bn) && bn <= prevBatch)
+        b.issues.push([
+          "warning",
+          "Batch number " + b.h.batchNo + " is not in ascending order",
+          b.n,
+        ]);
+      if (!isNaN(bn)) prevBatch = bn;
+      if (b.h.svc === "220" && hasDr)
+        b.issues.push(["error", "Service class 220 (credits only) contains debit entries", b.n]);
+      if (b.h.svc === "225" && hasCr)
+        b.issues.push(["error", "Service class 225 (debits only) contains credit entries", b.n]);
+      if (!SEC[b.h.sec]) b.issues.push(["warning", 'Unrecognized SEC code "' + b.h.sec + '"', b.n]);
+      if (!b.entries.length) b.issues.push(["warning", "Batch has no entries", b.n]);
+      const c = b.c;
+      if (c) {
+        if (c.svc !== b.h.svc)
+          b.issues.push([
+            "error",
+            "Batch control service class " + c.svc + " does not match header " + b.h.svc,
+            c.n,
+          ]);
+        if (c.batchNo !== b.h.batchNo)
+          b.issues.push([
+            "error",
+            "Batch control number " + c.batchNo + " does not match header " + b.h.batchNo,
+            c.n,
+          ]);
+        if (c.companyId !== b.h.companyId)
+          b.issues.push(["warning", "Batch control company ID does not match header", c.n]);
+        if (toInt(c.count) !== cnt)
+          b.issues.push([
+            "error",
+            "Entry/addenda count says " + toInt(c.count) + ", counted " + cnt,
+            c.n,
+          ]);
+        if (toInt(c.hash) !== b.calc.hash)
+          b.issues.push([
+            "error",
+            "Entry hash says " + c.hash + ", calculated " + String(b.calc.hash).padStart(10, "0"),
+            c.n,
+          ]);
+        if (toInt(c.debits) !== dr)
+          b.issues.push([
+            "error",
+            "Total debits say " + money(toInt(c.debits)) + ", entries add to " + money(dr),
+            c.n,
+          ]);
+        if (toInt(c.credits) !== cr)
+          b.issues.push([
+            "error",
+            "Total credits say " + money(toInt(c.credits)) + ", entries add to " + money(cr),
+            c.n,
+          ]);
+      }
+      for (const [lv, m, ln] of b.issues)
+        add(lv, "Batch " + b.h.batchNo.trim() + " (" + b.h.company.trim() + "): " + m, ln);
+    }
+    if (fc) {
+      const realRecs = records.filter((r) => r.kind !== "pad").length;
+      const blocks = Math.ceil(records.length / 10);
+      if (toInt(fc.batches) !== batches.length)
+        add(
+          "error",
+          "File control batch count says " + toInt(fc.batches) + ", file has " + batches.length,
+          fc.n,
+        );
+      if (toInt(fc.count) !== fCount)
+        add(
+          "error",
+          "File control entry/addenda count says " + toInt(fc.count) + ", counted " + fCount,
+          fc.n,
+        );
+      if (toInt(fc.hash) !== fHash % 1e10)
+        add(
+          "error",
+          "File control entry hash says " +
+            fc.hash +
+            ", calculated " +
+            String(fHash % 1e10).padStart(10, "0"),
+          fc.n,
+        );
+      if (toInt(fc.debits) !== fDr)
+        add(
+          "error",
+          "File control total debits say " +
+            money(toInt(fc.debits)) +
+            ", batches add to " +
+            money(fDr),
+          fc.n,
+        );
+      if (toInt(fc.credits) !== fCr)
+        add(
+          "error",
+          "File control total credits say " +
+            money(toInt(fc.credits)) +
+            ", batches add to " +
+            money(fCr),
+          fc.n,
+        );
+      if (toInt(fc.blocks) !== blocks)
+        add(
+          "warning",
+          "Block count says " +
+            toInt(fc.blocks) +
+            ", file has " +
+            blocks +
+            " block" +
+            (blocks > 1 ? "s" : "") +
+            " of 10 records",
+          fc.n,
+        );
+      if (records.length % 10 !== 0)
+        add(
+          "warning",
+          "File is not padded to a multiple of 10 records (" +
+            realRecs +
+            " records, " +
+            padding +
+            " filler)",
+        );
+    }
+    issues.sort(
+      (a, b) =>
+        (a.level === "error" ? 0 : 1) - (b.level === "error" ? 0 : 1) ||
+        (a.line || 0) - (b.line || 0),
+    );
+    return { fh, fc, batches, records, issues, tot, padding };
+  }
+
+  if (typeof module !== "undefined") module.exports = { parseNacha, tcInfo, routingOk, checkDigit };
+</script>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) =>
+    String(s ?? "").replace(
+      /[&<>"']/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
+  const state = { p: null, name: "", q: "", view: "entries", open: new Set(), sel: null };
+  try {
+    state.view = localStorage.getItem("nacha.view") === "raw" ? "raw" : "entries";
+  } catch (e) {}
+
+  function load(text, name) {
+    state.p = parseNacha(text);
+    state.name = name;
+    state.open.clear();
+    state.sel = null;
+    $("#landing").hidden = true;
+    $("#summary").hidden = false;
+    $("#bar").hidden = false;
+    render();
+  }
+
+  function render() {
+    renderSummary();
+    renderIssues();
+    renderView();
+  }
+
+  function statusChip(issues) {
+    const e = issues.filter((i) => i.level === "error").length,
+      w = issues.length - e;
+    if (e)
+      return `<span class="chip bad"><span class="dot"></span>${e} error${e > 1 ? "s" : ""}${w ? ` · ${w} warning${w > 1 ? "s" : ""}` : ""}</span>`;
+    if (w)
+      return `<span class="chip warn"><span class="dot"></span>Totals balance · ${w} warning${w > 1 ? "s" : ""}</span>`;
+    return `<span class="chip ok"><span class="dot"></span>All control totals check out</span>`;
+  }
+
+  function renderSummary() {
+    const p = state.p,
+      fh = p.fh || {},
+      t = p.tot;
+    const nE = t.entries,
+      nB = p.batches.length;
+    $("#summary").innerHTML = `
+  <div class="sumhead"><div class="fname">${esc(state.name)}</div>${statusChip(p.issues)}</div>
+  <div class="parties">
+    <div><div class="eyebrow">Originator</div><div class="v">${esc((fh.originName || "").trim() || "—")}</div><div class="s">ID ${esc((fh.origin || "").trim() || "—")}</div></div>
+    <div><div class="eyebrow">Sent to bank</div><div class="v">${esc((fh.destName || "").trim() || "—")}</div><div class="s">Routing ${esc((fh.dest || "").trim() || "—")}</div></div>
+    <div><div class="eyebrow">Created</div><div class="v">${fh.date ? fmtDate(fh.date) + " at " + fmtTime(fh.time) : "—"}</div><div class="s">File ID modifier ${esc(fh.mod || "—")}</div></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="eyebrow">Total credits</div><div class="big">${money(t.cr)}</div><div class="s">${t.crN} payment${t.crN !== 1 ? "s" : ""} into accounts</div></div>
+    <div class="stat debit"><div class="eyebrow">Total debits</div><div class="big">${money(t.dr)}</div><div class="s">${t.drN} withdrawal${t.drN !== 1 ? "s" : ""} from accounts</div></div>
+    <div class="stat"><div class="eyebrow">Entries</div><div class="big">${nE.toLocaleString()}</div><div class="s">${[t.pre ? t.pre + " prenote" + (t.pre > 1 ? "s" : "") : "", t.ret ? t.ret + " return" + (t.ret > 1 ? "s" : "") : "", t.noc ? t.noc + " NOC" + (t.noc > 1 ? "s" : "") : ""].filter(Boolean).join(" · ") || "No prenotes or returns"}</div></div>
+    <div class="stat"><div class="eyebrow">Batches</div><div class="big">${nB}</div><div class="s">${[...new Set(p.batches.map((b) => b.h.sec))].join(", ") || "—"}</div></div>
+  </div>`;
+  }
+
+  function renderIssues() {
+    const is = state.p.issues;
+    if (!is.length) {
+      $("#issues").innerHTML = "";
+      return;
+    }
+    const hasErr = is.some((i) => i.level === "error");
+    $("#issues").innerHTML =
+      `<details class="issues"${hasErr ? " open" : ""}><summary>${statusChip(is)} <span>What the checks found</span></summary><ul>${is
+        .map(
+          (i) =>
+            `<li><span class="ln">${i.line ? "line " + i.line : ""}</span><span class="lvl ${i.level}">${i.level}</span><span>${esc(i.msg)}</span></li>`,
+        )
+        .join("")}</ul></details>`;
+  }
+
+  function matches(e, q) {
+    if (!q) return true;
+    const b = e.batch.h;
+    const hay = [
+      e.name,
+      e.id,
+      e.trace,
+      e.acct.trim(),
+      e.rt,
+      (e.amt / 100).toFixed(2),
+      money(e.amt),
+      e.tcInfo.label,
+      b.company,
+      b.desc,
+      b.sec,
+      ...e.addenda.map((a) => a.info + " " + (a.code || "")),
+    ]
+      .join(" ")
+      .toLowerCase();
+    return q.split(/\s+/).every((w) => hay.includes(w.replace(/[$,]/g, "")) || hay.includes(w));
+  }
+
+  function renderView() {
+    $("#tabEntries").setAttribute("aria-selected", state.view === "entries");
+    $("#tabRaw").setAttribute("aria-selected", state.view === "raw");
+    $("#copyBtn").hidden = state.view !== "entries";
+    state.view === "entries" ? renderBatches() : renderRaw();
+  }
+
+  function entryTags(e) {
+    const t = [];
+    if (e.tcInfo.kind === "prenote") t.push('<span class="tag acc">Prenote</span>');
+    if (e.tcInfo.kind === "zero") t.push('<span class="tag">Zero-dollar</span>');
+    if (e.addenda.some((a) => a.addType === "99"))
+      t.push(
+        '<span class="tag bad">Return ' +
+          esc(e.addenda.find((a) => a.addType === "99").code) +
+          "</span>",
+      );
+    if (e.addenda.some((a) => a.addType === "98"))
+      t.push(
+        '<span class="tag warn">NOC ' +
+          esc(e.addenda.find((a) => a.addType === "98").code) +
+          "</span>",
+      );
+    if (e.issues.some((i) => i[0] === "error")) t.push('<span class="tag bad">Error</span>');
+    else if (e.issues.length) t.push('<span class="tag warn">Check</span>');
+    return t.join("");
+  }
+
+  function addendaHtml(a) {
+    if (a.addType === "99")
+      return `<div class="a"><div class="t">Return · ${esc(a.code)} ${esc(RCODES[a.code] || "Unknown return code")}</div><div class="x">Original trace ${esc(a.origTrace)} · Original RDFI ${esc(a.origRdfi)}${a.dod.trim() ? " · Date of death " + fmtDate(a.dod) : ""}${a.info.trim() ? "\n" + esc(a.info.trim()) : ""}</div></div>`;
+    if (a.addType === "98")
+      return `<div class="a"><div class="t">Notification of change · ${esc(a.code)} ${esc(CCODES[a.code] || "Unknown change code")}</div><div class="x">Corrected data: ${esc(a.info.trim())}\nOriginal trace ${esc(a.origTrace)}</div></div>`;
+    return `<div class="a"><div class="t">${esc(ADDTYPE[a.addType] || "Addenda type " + a.addType)}</div><div class="x">${esc(a.info.trim())}</div></div>`;
+  }
+
+  function detailHtml(e) {
+    const kv = [
+      ["Transaction code", e.tc + " · " + e.tcInfo.label],
+      ["Routing number", e.rt + (routingOk(e.rt) ? "" : "  (check digit fails)")],
+      ["Account number", e.acct.trim()],
+      ["Amount", money(e.amt)],
+      ["Identification", e.id.trim() || "—"],
+      ["Trace number", e.trace],
+      ["Discretionary data", e.disc.trim() || "—"],
+      ["File line", e.n],
+    ];
+    return `<div class="kv">${kv.map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join("")}</div>
+    ${e.addenda.length ? `<div class="addenda">${e.addenda.map(addendaHtml).join("")}</div>` : ""}
+    ${e.issues.length ? `<div class="eiss">${e.issues.map((i) => esc(i[1])).join("<br>")}</div>` : ""}`;
+  }
+
+  function renderBatches() {
+    const q = state.q.trim().toLowerCase();
+    let html = "",
+      shown = 0;
+    state.p.batches.forEach((b, bi) => {
+      const rows = b.entries.filter((e) => matches(e, q));
+      if (q && !rows.length) return;
+      shown++;
+      const h = b.h,
+        bErr =
+          b.issues.some((i) => i[0] === "error") ||
+          b.entries.some((e) => e.issues.some((i) => i[0] === "error"));
+      const bWarn = b.issues.length || b.entries.some((e) => e.issues.length);
+      html += `<section class="batch"><div class="bhead"><div class="left">
+      <div class="eyebrow">Batch ${esc(h.batchNo.replace(/^0+/, "") || "0")} · ${esc(SVC[h.svc] || "Service class " + h.svc)}</div>
+      <h3>${esc(h.company.trim())} · ${esc(h.desc.trim())}</h3>
+      <div class="bmeta"><span class="chip acc" title="${esc(SEC[h.sec] || "")}">${esc(h.sec)}</span><span>${esc(SEC[h.sec] || "Unrecognized SEC code")}</span><span>Effective <b>${fmtDate(h.eff)}</b></span>${h.descDate.trim() ? `<span>Descriptive date <b>${esc(h.descDate.trim())}</b></span>` : ""}<span>Company ID <b class="mono">${esc(h.companyId.trim())}</b></span></div>
+    </div><div class="btot">
+      <div><span class="eyebrow">Credits</span><span class="amt">${money(b.calc.cr)}</span></div>
+      <div><span class="eyebrow">Debits</span><span class="amt debit">${money(b.calc.dr)}</span></div>
+      <div><span class="eyebrow">Entries</span><span class="amt">${b.entries.length}</span></div>
+      <div><span class="eyebrow">Controls</span>${bErr ? '<span class="chip bad">Mismatch</span>' : bWarn ? '<span class="chip warn">Warnings</span>' : '<span class="chip ok">Balanced</span>'}</div>
+    </div></div>
+    <div class="tablewrap"><table><thead><tr><th>Receiver</th><th>Type</th><th>Routing</th><th>Account</th><th class="r">Amount</th><th>Trace</th></tr></thead><tbody>${
+      rows
+        .map((e) => {
+          const key = bi + ":" + e.n,
+            open = state.open.has(key);
+          return `<tr class="e${open ? " open" : ""}" data-k="${key}" tabindex="0" aria-expanded="${open}"><td><div>${esc(e.name.trim())}${entryTags(e)}</div><div class="sub">${esc(e.id.trim())}${e.addenda.length ? " · " + e.addenda.length + " addenda" : ""}</div></td>
+        <td>${esc(e.tcInfo.label)}<div class="sub">Code ${esc(e.tc)}</div></td>
+        <td class="mono">${esc(e.rt)}</td><td class="mono">${esc(e.acct.trim())}</td>
+        <td class="amt r${e.tcInfo.debit ? " debit" : ""}">${e.tcInfo.debit ? "−" : ""}${money(e.amt)}</td><td class="mono">${esc(e.trace)}</td></tr>${
+          open ? `<tr class="detail"><td colspan="6">${detailHtml(e)}</td></tr>` : ""
+        }`;
+        })
+        .join("") || '<tr><td colspan="6" class="empty">No entries in this batch</td></tr>'
+    }</tbody></table></div></section>`;
+    });
+    if (!state.p.batches.length)
+      html =
+        '<div class="batch empty">No batches were found. Check that this is a NACHA-format ACH file (records start with 1, 5, 6, 7, 8, 9).</div>';
+    else if (!shown) html = `<div class="batch empty">No entries match “${esc(state.q)}”.</div>`;
+    $("#view").innerHTML = html;
+  }
+
+  const TAGS = { 1: "FH", 5: "BH", 6: "ENT", 7: "ADD", 8: "BC", 9: "FC" };
+  const TYPENAME = {
+    1: "File header",
+    5: "Batch header",
+    6: "Entry detail",
+    7: "Addenda",
+    8: "Batch control",
+    9: "File control",
+  };
+  function meaning(fmt, v, rec) {
+    const t = v.trim();
+    switch (fmt) {
+      case "date":
+        return /^\d{6}$/.test(t) ? fmtDate(t) : "";
+      case "time":
+        return fmtTime(t);
+      case "money":
+        return money(toInt(t));
+      case "svc":
+        return SVC[t] || "Unknown";
+      case "sec":
+        return SEC[t] || "Unrecognized";
+      case "tc":
+        return tcInfo(t).label;
+      case "rcode":
+        return RCODES[t] || "";
+      case "ccode":
+        return CCODES[t] || "";
+      case "addtype":
+        return ADDTYPE[t] || "";
+      case "rt":
+        return routingOk(t) ? "Valid routing number" : "Check digit fails";
+      default:
+        return "";
+    }
+  }
+
+  function renderRaw() {
+    const recs = state.p.records;
+    const lines = recs
+      .map((r, i) => {
+        const lay = layoutFor(r);
+        const spans = lay
+          .map(
+            ([k, s, n, label]) =>
+              `<span class="fd" title="${esc(label)} (${s}${n > 1 ? "–" + (s + n - 1) : ""})">${esc(r.raw.substr(s - 1, n))}</span>`,
+          )
+          .join("");
+        const tag = r.kind === "pad" ? "PAD" : TAGS[r.type] || "?";
+        return `<div class="rl${r.kind === "pad" ? " pad" : ""}${state.sel === i ? " sel" : ""}${r.lenBad ? " bad" : ""}" data-i="${i}" tabindex="0"><span class="ln">${r.n}</span><span class="ty ${r.kind === "pad" ? "pad" : "e" + r.type}">${tag}</span>${spans}</div>`;
+      })
+      .join("");
+    $("#view").innerHTML =
+      `<div class="rawgrid"><div style="min-width:0;display:flex;flex-direction:column;gap:8px">
+    <div class="legend"><span>FH file header</span><span>BH batch header</span><span>ENT entry</span><span>ADD addenda</span><span>BC batch control</span><span>FC file control</span><span>Hover a field for its name; click a line to decode it.</span></div>
+    <div class="rawlist">${lines}</div></div>
+    <aside class="inspector" id="insp">${inspectorHtml()}</aside></div>`;
+  }
+  function inspectorHtml() {
+    if (state.sel == null)
+      return '<h3>Field inspector</h3><p class="mean">Click any record to see each field, its column positions and what it means.</p>';
+    const r = state.p.records[state.sel],
+      lay = layoutFor(r);
+    const title =
+      r.kind === "pad"
+        ? "Block filler"
+        : (TYPENAME[r.type] || "Unknown record") +
+          (r.type === "7" ? " · " + (ADDTYPE[r.raw.substr(1, 2)] || "") : "");
+    return `<h3>${esc(title)} <span class="mean">line ${r.n}</span></h3><table><tbody>${lay
+      .map(([k, s, n, label, fmt]) => {
+        const v = r.raw.substr(s - 1, n),
+          m = meaning(fmt, v, r);
+        return `<tr><td class="pos">${s}${n > 1 ? "–" + (s + n - 1) : ""}</td><td><div>${esc(label)}</div>${m ? `<div class="mean">${esc(m)}</div>` : ""}</td><td class="val">${esc(v.trim() ? v.trimEnd() : "(blank)")}</td></tr>`;
+      })
+      .join("")}</tbody></table>`;
+  }
+
+  $("#view").addEventListener("click", (ev) => {
+    const tr = ev.target.closest("tr.e");
+    if (tr) {
+      const k = tr.dataset.k;
+      state.open.has(k) ? state.open.delete(k) : state.open.add(k);
+      renderBatches();
+      return;
+    }
+    const rl = ev.target.closest(".rl");
+    if (rl) {
+      const prev = document.querySelector(".rl.sel");
+      if (prev) prev.classList.remove("sel");
+      rl.classList.add("sel");
+      state.sel = +rl.dataset.i;
+      $("#insp").innerHTML = inspectorHtml();
+    }
+  });
+  $("#view").addEventListener("keydown", (ev) => {
+    if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches("tr.e,.rl")) {
+      ev.preventDefault();
+      ev.target.click();
+    }
+  });
+  $("#tabEntries").onclick = () => {
+    state.view = "entries";
+    try {
+      localStorage.setItem("nacha.view", "entries");
+    } catch (e) {}
+    renderView();
+  };
+  $("#tabRaw").onclick = () => {
+    state.view = "raw";
+    try {
+      localStorage.setItem("nacha.view", "raw");
+    } catch (e) {}
+    renderView();
+  };
+  $("#search").addEventListener("input", (e) => {
+    state.q = e.target.value;
+    if (state.view === "entries") renderBatches();
+  });
+  $("#pasteBtn").onclick = () => {
+    $("#pasteBox").hidden = false;
+    $("#pasteArea").focus();
+  };
+  $("#pasteCancel").onclick = () => {
+    $("#pasteBox").hidden = true;
+  };
+  $("#pasteLoad").onclick = () => {
+    const t = $("#pasteArea").value;
+    if (!t.trim()) return;
+    load(t, "Pasted text");
+    $("#pasteBox").hidden = true;
+    $("#pasteArea").value = "";
+  };
+
+  function readFile(f) {
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => load(fr.result, f.name);
+    fr.readAsText(f);
+  }
+  $("#fileInput").addEventListener("change", (e) => {
+    readFile(e.target.files[0]);
+    e.target.value = "";
+  });
+  let dragN = 0;
+  addEventListener("dragenter", (e) => {
+    if ([...(e.dataTransfer?.types || [])].includes("Files")) {
+      dragN++;
+      $("#drop").hidden = false;
+    }
+  });
+  addEventListener("dragleave", () => {
+    if (--dragN <= 0) {
+      dragN = 0;
+      $("#drop").hidden = true;
+    }
+  });
+  addEventListener("dragover", (e) => e.preventDefault());
+  addEventListener("drop", (e) => {
+    e.preventDefault();
+    dragN = 0;
+    $("#drop").hidden = true;
+    readFile(e.dataTransfer.files[0]);
+  });
+  document.addEventListener("paste", (e) => {
+    if (e.target.closest("input,textarea")) return;
+    const t = e.clipboardData?.getData("text") || "";
+    if (/^1\d{2}/.test(t.trim())) {
+      e.preventDefault();
+      load(t, "Pasted text");
+    }
+  });
+
+  $("#copyBtn").onclick = async () => {
+    const q = state.q.trim().toLowerCase();
+    const head = [
+      "Batch",
+      "Company",
+      "SEC",
+      "Description",
+      "Effective date",
+      "Receiver",
+      "ID",
+      "Tran code",
+      "Type",
+      "Routing",
+      "Account",
+      "Amount",
+      "Debit/Credit",
+      "Trace",
+      "Addenda",
+    ];
+    const rows = [head];
+    for (const b of state.p.batches)
+      for (const e of b.entries) {
+        if (!matches(e, q)) continue;
+        rows.push([
+          b.h.batchNo,
+          b.h.company.trim(),
+          b.h.sec,
+          b.h.desc.trim(),
+          fmtDate(b.h.eff),
+          e.name.trim(),
+          e.id.trim(),
+          e.tc,
+          e.tcInfo.label,
+          e.rt,
+          e.acct.trim(),
+          (e.amt / 100).toFixed(2),
+          e.tcInfo.debit ? "Debit" : "Credit",
+          e.trace,
+          e.addenda.map((a) => (a.code ? a.code + " " : "") + a.info.trim()).join(" | "),
+        ]);
+      }
+    const tsv = rows
+      .map((r) => r.map((c) => String(c).replace(/[\t\r\n]+/g, " ")).join("\t"))
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(tsv);
+      $("#copyMsg").textContent = `Copied ${rows.length - 1} rows. Paste into Excel.`;
+    } catch (err) {
+      const ta = document.createElement("textarea");
+      ta.value = tsv;
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch (x) {}
+      ta.remove();
+      $("#copyMsg").textContent = ok
+        ? `Copied ${rows.length - 1} rows.`
+        : "Copy was blocked by the browser.";
+    }
+    setTimeout(() => ($("#copyMsg").textContent = ""), 4000);
+  };
+</script>
