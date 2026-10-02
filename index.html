@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>NACHA File Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="src/styles.css" />
+    <script type="module" src="src/main.js"></script>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div class="brand">
+          <div class="eyebrow">ACH · 94-character records</div>
+          <h1>NACHA File Viewer</h1>
+          <p>Files are read inside this browser tab. Nothing is uploaded or saved.</p>
+        </div>
+        <div class="actions">
+          <label class="btn primary" for="fileInput">Open ACH file…</label>
+          <input type="file" id="fileInput" accept=".ach,.000,.00,.txt,.dat,.nacha,text/plain" />
+          <button id="pasteBtn" type="button">Paste text</button>
+        </div>
+      </header>
+
+      <div class="pastebox" id="pasteBox" hidden>
+        <label class="eyebrow" for="pasteArea">Paste the contents of an ACH file</label>
+        <textarea
+          id="pasteArea"
+          spellcheck="false"
+          placeholder="101 0910000191234567890261002…"
+        ></textarea>
+        <div class="row">
+          <button type="button" id="pasteCancel">Cancel</button>
+          <button type="button" class="primary" id="pasteLoad">Read file</button>
+        </div>
+      </div>
+
+      <label class="landing" id="landing" for="fileInput">
+        <span class="eyebrow">Start here</span>
+        <span class="lt">Open a NACHA file to review it</span>
+        <span class="ld">
+          Drag the file onto this page, click here to choose it, or paste its text. ACH files from
+          payroll or accounts payable usually end in .ach, .txt, .000 or .00.
+        </span>
+        <span class="steps">
+          <span>
+            <b>Totals</b>
+            Credits, debits and entry counts for the whole file and each batch
+          </span>
+          <span>
+            <b>Checks</b>
+            Control totals, entry hash, block count and routing check digits recomputed
+          </span>
+          <span>
+            <b>Details</b>
+            Every payee, account, amount and trace number, plus return and change codes
+          </span>
+        </span>
+      </label>
+
+      <section class="summary" id="summary" hidden></section>
+      <div id="issues"></div>
+
+      <div class="bar" id="bar" hidden>
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" id="tabEntries" aria-selected="true">
+            Batches &amp; entries
+          </button>
+          <button type="button" role="tab" id="tabRaw" aria-selected="false">Raw records</button>
+        </div>
+        <div class="tools">
+          <input
+            class="search"
+            id="search"
+            type="search"
+            placeholder="Search name, amount, account, trace…"
+            aria-label="Search entries"
+          />
+          <button
+            type="button"
+            id="copyBtn"
+            title="Copies the visible entries as tab-separated rows you can paste into Excel"
+          >
+            Copy for Excel
+          </button>
+          <span id="copyMsg" role="status"></span>
+        </div>
+      </div>
+
+      <main id="view"></main>
+
+      <footer>
+        Reads standard NACHA files (PPD, CCD, CTX, WEB, TEL and other SEC codes), including return
+        (R) and notification of change (C) addenda. Checks every batch and file control total, entry
+        hash, block count and routing check digit. IAT entries are shown with the domestic field
+        layout.
+      </footer>
+    </div>
+    <div id="drop" hidden>Drop the ACH file to read it</div>
+  </body>
+</html>

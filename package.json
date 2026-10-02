@@ -1,0 +1,20 @@
+{
+  "name": "nacha-viewer",
+  "version": "1.0.0",
+  "description": "Browser-based viewer and validator for NACHA ACH files",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/serve.js",
+    "build": "node scripts/build.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "prettier": "^3.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
